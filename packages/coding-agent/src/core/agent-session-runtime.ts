@@ -497,6 +497,22 @@ export class AgentSessionRuntime implements SubagentRuntimeHost {
 		return { cancelled: false };
 	}
 
+	/**
+	 * Model, thinking level, service tier, and scoped models of the live session.
+	 * A fork must keep these: without an explicit override, runtime creation
+	 * re-applies the CLI/daemon `--model` / `--thinking` config, which replaces
+	 * whatever the user selected in the session being forked.
+	 */
+	private inheritedSessionOptions(): AgentSessionCreationOptions {
+		const session = this.session;
+		return {
+			model: session.model,
+			thinkingLevel: session.thinkingLevel,
+			serviceTier: session.serviceTier,
+			scopedModels: session.scopedModels.length > 0 ? [...session.scopedModels] : undefined,
+		};
+	}
+
 	async fork(
 		entryId: string,
 		options?: {
@@ -505,6 +521,7 @@ export class AgentSessionRuntime implements SubagentRuntimeHost {
 		},
 	): Promise<{ cancelled: boolean; selectedText?: string }> {
 		const position = options?.position ?? "before";
+		const inheritedOptions = this.inheritedSessionOptions();
 		const beforeResult = await this.emitBeforeFork(entryId, { position });
 		if (beforeResult.cancelled) {
 			return { cancelled: true };
@@ -556,6 +573,7 @@ export class AgentSessionRuntime implements SubagentRuntimeHost {
 									previousSessionFile,
 								},
 								sessionConfig: this.sessionConfig,
+								sessionOptions: inheritedOptions,
 							}),
 						),
 					lease,
@@ -585,6 +603,7 @@ export class AgentSessionRuntime implements SubagentRuntimeHost {
 								previousSessionFile,
 							},
 							sessionConfig: this.sessionConfig,
+							sessionOptions: inheritedOptions,
 						}),
 					),
 				lease,
@@ -618,6 +637,7 @@ export class AgentSessionRuntime implements SubagentRuntimeHost {
 							previousSessionFile,
 						},
 						sessionConfig: this.sessionConfig,
+						sessionOptions: inheritedOptions,
 					}),
 				),
 			lease,

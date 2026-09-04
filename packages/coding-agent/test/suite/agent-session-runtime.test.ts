@@ -796,6 +796,35 @@ describe("AgentSessionRuntime characterization", () => {
 		).toEqual(beforeMessages);
 	});
 
+	it("keeps the session's selected model and thinking level when forking", async () => {
+		// createRuntime re-applies the bootstrap --model/--thinking config unless the
+		// fork passes the live session's selection through sessionOptions.
+		const { runtime, faux } = await createRuntimeForTest(() => {});
+		const bootstrapModel = runtime.session.model;
+		expect(bootstrapModel?.id).toBe("faux-1");
+
+		const switchedModel = faux.getModel("faux-2");
+		expect(switchedModel).toBeDefined();
+		await runtime.session.setModel(switchedModel!);
+		await runtime.session.prompt("hello");
+
+		const userMessages = runtime.session.getUserMessagesForForking();
+		expect(userMessages).toHaveLength(1);
+		const beforeResult = await runtime.fork(userMessages[0]!.entryId);
+		expect(beforeResult.cancelled).toBe(false);
+		expect(runtime.session.model?.id).toBe("faux-2");
+		expect(runtime.session.thinkingLevel).toBe("off");
+
+		await runtime.session.setModel(bootstrapModel!);
+		runtime.session.setThinkingLevel("high");
+		await runtime.session.prompt("again");
+		const leafId = runtime.session.sessionManager.getLeafId();
+		const atResult = await runtime.fork(leafId!, { position: "at" });
+		expect(atResult.cancelled).toBe(false);
+		expect(runtime.session.model?.id).toBe("faux-1");
+		expect(runtime.session.thinkingLevel).toBe("high");
+	});
+
 	it("duplicates the current active branch in-memory when forking at the current position", async () => {
 		const { runtime } = await createRuntimeForTest(() => {}, { inMemory: true });
 

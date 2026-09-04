@@ -1,0 +1,1 @@
+- Fixed `/fork` reverting to the CLI `--model`/`--thinking` instead of keeping the model, thinking level, service tier, and scoped models selected in the forked session.
